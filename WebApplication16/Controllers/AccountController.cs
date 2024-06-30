@@ -12,6 +12,8 @@ namespace WebApplication16.Controllers
         private readonly SignInManager<AppUser> _signInManager;
         private readonly UserManager<AppUser> _userManager;
         private readonly ClassContext _classContext;
+
+
         public AccountController(SignInManager<AppUser> signInManager, UserManager<AppUser> userManager, ClassContext classContext)
         {
             _classContext = classContext;
@@ -99,26 +101,35 @@ namespace WebApplication16.Controllers
 
             return RedirectToAction("Login", "Account");
         }
-
+        [HttpGet]
         public IActionResult ForgotPssword()
         {
 
 
-
             return View();
         }
+        [HttpPost]
 
         public async Task<IActionResult> ForgotPssword(string username)
         {
-            AppUser appUser = (AppUser)_classContext.Users.FirstOrDefault(x => x.UserName == username);
 
-            string urlAPI = "";
+
+
+            AppUser appUser = (AppUser)_classContext.Users.FirstOrDefault(x => x.UserName == username);
+            string phonenumber = appUser.PhoneNumber.ToString();
+            phonenumber = phonenumber.Substring(phonenumber.Length - 9);
+            Random random = new Random();
+            int randomint = random.Next(999, 9999);
+            appUser.OTP = randomint.ToString();
+            string urlAPI = $"https://heydaroghlu.com/api/Accounts/Sms?number={phonenumber}&message= Tesdiq Kodunuz: {appUser.OTP}";
+
+
             using (HttpClient client = new HttpClient())
             {
 
                 HttpResponseMessage message = await client.GetAsync(urlAPI);
                 string result = await message.Content.ReadAsStringAsync();
-                if (message.IsSuccessStatusCode) { return View(); } else { ModelState.AddModelError("", result); return View(); };
+                return View();
 
             }
         }
