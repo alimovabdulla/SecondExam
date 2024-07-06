@@ -128,33 +128,29 @@ namespace WebApplication16.Controllers
                 ModelState.AddModelError("", "Telefon Nomresi sehfdir");
                 return View();
             }
-            if (appUser.OTPtimer > DateTime.UtcNow.AddHours(4))
-            {
-                appUser.OTPtimer = DateTime.MinValue;
-                appUser.CheckOTP = 0;
 
-                await _classContext.SaveChangesAsync();
-
-
-
-            }
-            else if (appUser.OTPtimer < DateTime.UtcNow.AddHours(4))
+            if (appUser.OTPtimer != DateTime.MinValue && appUser.OTPtimer < DateTime.UtcNow.AddHours(4))
             {
                 appUser.OTPtimer = DateTime.MinValue;
                 appUser.CheckOTP = 0;
                 await _classContext.SaveChangesAsync();
             }
-
 
             if (appUser.CheckOTP >= 3)
             {
-
+                appUser.OTPtimer = DateTime.UtcNow.AddHours(4).AddMinutes(1);
+                appUser.CheckOTP = 0; // Reset the attempt counter after locking
                 await _classContext.SaveChangesAsync();
                 ModelState.AddModelError("", "1 deqiqe sonra yeniden cehd edin");
-
                 return View();
             }
 
+            // Check if the OTP timer is still active (1 minute lock period)
+            if (appUser.OTPtimer != DateTime.MinValue && appUser.OTPtimer > DateTime.UtcNow.AddHours(4))
+            {
+                ModelState.AddModelError("", "1 deqiqe sonra yeniden cehd edin");
+                return View();
+            }
 
             if (appUser.OTP == otp)
             {
@@ -166,16 +162,18 @@ namespace WebApplication16.Controllers
             else
             {
                 appUser.CheckOTP++;
-                if (appUser.CheckOTP >= 2)
+                if (appUser.CheckOTP >= 3)
                 {
+                    // Start the lockout timer
                     appUser.OTPtimer = DateTime.UtcNow.AddHours(4).AddMinutes(1);
                 }
                 await _classContext.SaveChangesAsync();
-                ModelState.AddModelError("", "OTP yanlıştır");
+                ModelState.AddModelError("", "OTP yanlışdır");
             }
 
             return View();
         }
+
 
         public async Task<IActionResult> SignOut()
         {
