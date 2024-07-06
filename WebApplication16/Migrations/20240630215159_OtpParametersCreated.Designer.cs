@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebApplication16.DataBase;
 
@@ -11,9 +12,10 @@ using WebApplication16.DataBase;
 namespace WebApplication16.Migrations
 {
     [DbContext(typeof(ClassContext))]
-    partial class ClassContextModelSnapshot : ModelSnapshot
+    [Migration("20240630215159_OtpParametersCreated")]
+    partial class OtpParametersCreated
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -230,8 +232,9 @@ namespace WebApplication16.Migrations
                 {
                     b.HasBaseType("Microsoft.AspNetCore.Identity.IdentityUser");
 
-                    b.Property<int>("CheckOTP")
-                        .HasColumnType("int");
+                    b.Property<string>("CheckOTP")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FullName")
                         .IsRequired()

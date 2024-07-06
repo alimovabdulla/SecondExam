@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Threading;
 using System.Xml.Linq;
 using WebApplication16.DataBase;
+using WebApplication16.DTOs;
+using WebApplication16.Helper.Sms;
 using WebApplication16.Models;
 
 namespace WebApplication16.Controllers
@@ -12,7 +16,7 @@ namespace WebApplication16.Controllers
         private readonly SignInManager<AppUser> _signInManager;
         private readonly UserManager<AppUser> _userManager;
         private readonly ClassContext _classContext;
-
+        SmsService _smsService = new SmsService();
 
         public AccountController(SignInManager<AppUser> signInManager, UserManager<AppUser> userManager, ClassContext classContext)
         {
@@ -26,23 +30,31 @@ namespace WebApplication16.Controllers
             return View();
         }
         [HttpPost]
-        public async Task<IActionResult> Register(string username, string password, string phone)
+        public async Task<IActionResult> Register(RegisterDTO register)
         {
+
             AppUser appUser = new AppUser();
-            appUser.UserName = username;
-            appUser.PhoneNumber = phone;
-            var result = await _userManager.CreateAsync(appUser, password);
+            appUser.FullName = register.Name + "" + register.Surname;
+            appUser.UserName = register.Email;
+            appUser.PhoneNumber = register.PhoneNumber;
+
+
+            appUser.LockoutEnabled = true;
+            await _classContext.SaveChangesAsync();
+
+            appUser.OTP = await _smsService.Send(appUser.PhoneNumber);
+            var result = await _userManager.CreateAsync(appUser, register.Password);
             if (!result.Succeeded)
             {
                 string error = "";
                 foreach (var item in result.Errors)
                 {
                     error += item;
-
                 }
                 ModelState.AddModelError("", error);
-
             }
+            else if (result.Succeeded) { return RedirectToAction("AcceptAccount", "Account"); }
+
             await _classContext.SaveChangesAsync();
 
             return View();
@@ -58,6 +70,7 @@ namespace WebApplication16.Controllers
         public async Task<IActionResult> Login(string username, string password)
         {
             AppUser user = await _userManager.FindByNameAsync(username);
+
             if (user == null)
             {
 
@@ -65,6 +78,11 @@ namespace WebApplication16.Controllers
                 return View();
 
 
+            }
+            if (user.LockoutEnabled == true)
+            {
+                ModelState.AddModelError("", "Hesabiniz Activ Deyil");
+                return View();
             }
             var results = await _signInManager.PasswordSignInAsync(user, password, true, false);
             if (results.Succeeded)
@@ -74,7 +92,7 @@ namespace WebApplication16.Controllers
             else
             {
 
-                ModelState.AddModelError("", "Sifre yazlnisdir");
+                ModelState.AddModelError("", "Sifre yalnisdir");
                 return View();
             }
 
@@ -95,6 +113,70 @@ namespace WebApplication16.Controllers
 
             return View(appUser);
         }
+        [HttpGet]
+        public IActionResult AcceptAccount()
+        {
+
+            return View();
+        }
+        [HttpPost]
+        public async Task<IActionResult> AcceptAccount(string phone, string otp)
+        {
+            AppUser appUser = (AppUser)await _classContext.Users.FirstOrDefaultAsync(x => x.PhoneNumber == phone);
+            if (appUser == null)
+            {
+                ModelState.AddModelError("", "Telefon Nomresi sehfdir");
+                return View();
+            }
+            if (appUser.OTPtimer > DateTime.UtcNow.AddHours(4))
+            {
+                appUser.OTPtimer = DateTime.MinValue;
+                appUser.CheckOTP = 0;
+
+                await _classContext.SaveChangesAsync();
+
+
+
+            }
+            else if (appUser.OTPtimer < DateTime.UtcNow.AddHours(4))
+            {
+                appUser.OTPtimer = DateTime.MinValue;
+                appUser.CheckOTP = 0;
+                await _classContext.SaveChangesAsync();
+            }
+
+
+            if (appUser.CheckOTP >= 3)
+            {
+
+                await _classContext.SaveChangesAsync();
+                ModelState.AddModelError("", "1 deqiqe sonra yeniden cehd edin");
+
+                return View();
+            }
+
+
+            if (appUser.OTP == otp)
+            {
+                appUser.LockoutEnabled = false;
+                appUser.CheckOTP = 0;
+                await _classContext.SaveChangesAsync();
+                return RedirectToAction("Login", "Account");
+            }
+            else
+            {
+                appUser.CheckOTP++;
+                if (appUser.CheckOTP >= 2)
+                {
+                    appUser.OTPtimer = DateTime.UtcNow.AddHours(4).AddMinutes(1);
+                }
+                await _classContext.SaveChangesAsync();
+                ModelState.AddModelError("", "OTP yanlıştır");
+            }
+
+            return View();
+        }
+
         public async Task<IActionResult> SignOut()
         {
             await _signInManager.SignOutAsync();
@@ -108,30 +190,17 @@ namespace WebApplication16.Controllers
 
             return View();
         }
-        [HttpPost]
+        //[HttpPost]
 
-        public async Task<IActionResult> ForgotPssword(string username)
-        {
-
-
-
-            AppUser appUser = (AppUser)_classContext.Users.FirstOrDefault(x => x.UserName == username);
-            string phonenumber = appUser.PhoneNumber.ToString();
-            phonenumber = phonenumber.Substring(phonenumber.Length - 9);
-            Random random = new Random();
-            int randomint = random.Next(999, 9999);
-            appUser.OTP = randomint.ToString();
-            string urlAPI = $"https://heydaroghlu.com/api/Accounts/Sms?number={phonenumber}&message= Tesdiq Kodunuz: {appUser.OTP}";
+        //public async Task<IActionResult> ForgotPssword(string username)
+        //{
 
 
-            using (HttpClient client = new HttpClient())
-            {
 
-                HttpResponseMessage message = await client.GetAsync(urlAPI);
-                string result = await message.Content.ReadAsStringAsync();
-                return View();
+        //    AppUser appUser = (AppUser)_classContext.Users.FirstOrDefault(x => x.UserName == username);
+        //    string phonenumber = appUser.PhoneNumber.ToString();
+        //    phonenumber = phonenumber.Substring(phonenumber.Length - 9);
 
-            }
-        }
+        //}
     }
 }
