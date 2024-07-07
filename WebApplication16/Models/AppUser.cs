@@ -12,7 +12,7 @@ namespace WebApplication16.Models
 
         public DateTime OTPtimer { get; set; }
 
-
+        public DateTime OTPtimerRegister { get; set; }
 
 
     }

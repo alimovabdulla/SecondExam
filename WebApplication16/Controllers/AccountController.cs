@@ -53,7 +53,12 @@ namespace WebApplication16.Controllers
                 }
                 ModelState.AddModelError("", error);
             }
-            else if (result.Succeeded) { return RedirectToAction("AcceptAccount", "Account"); }
+            else if (result.Succeeded)
+            {
+ 
+
+                return RedirectToAction("AcceptAccount", "Account");
+            }
 
             await _classContext.SaveChangesAsync();
 
@@ -136,10 +141,9 @@ namespace WebApplication16.Controllers
                 await _classContext.SaveChangesAsync();
             }
 
-            if (appUser.CheckOTP >= 3)
+            if (appUser.CheckOTP >= 2)
             {
-                appUser.OTPtimer = DateTime.UtcNow.AddHours(4).AddMinutes(1);
-                appUser.CheckOTP = 0; // Reset the attempt counter after locking
+
                 await _classContext.SaveChangesAsync();
                 ModelState.AddModelError("", "1 deqiqe sonra yeniden cehd edin");
                 return View();
@@ -162,7 +166,7 @@ namespace WebApplication16.Controllers
             else
             {
                 appUser.CheckOTP++;
-                if (appUser.CheckOTP >= 3)
+                if (appUser.CheckOTP >= 2)
                 {
                     // Start the lockout timer
                     appUser.OTPtimer = DateTime.UtcNow.AddHours(4).AddMinutes(1);
